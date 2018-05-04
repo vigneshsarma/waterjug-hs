@@ -1,13 +1,15 @@
 module Lib
-    ( someFunc
-    , newProblem
+    ( newProblem
     , allStates
     , isPathPossible
+    , findPaths
+    , shortestPath
+    , solve
     ) where
 
 import qualified Data.Map.Strict as M
 import qualified Data.Set as S
-import qualified Data.List as L
+-- import qualified Data.List as L
 import Data.Maybe
 
 data Jug = Jug Int Int deriving (Show, Eq, Ord)
@@ -87,5 +89,32 @@ allStates (Problem i f) =
 isPathPossible :: Problem -> StateMap -> Bool
 isPathPossible (Problem _ f) m = S.member f $ S.fromList $ concat $ M.elems m
 
-someFunc :: IO ()
-someFunc = putStrLn "someFunc"
+{-
+given a problem and its statemaps, find possible non cyclic paths
+to the final state from inital state.
+You have to ensure that there is a path to final state before calling this.
+-}
+findPaths :: Problem -> StateMap -> [[State]]
+findPaths (Problem i f) m =
+  findPaths' [i] [] 0
+  where
+    findPaths' :: [State] -> [[State]] -> Int -> [[State]]
+    findPaths' (x:xs) ps len
+      -- we have found a cycle, return the routes we have found and end the branch
+      | x `elem` xs = ps
+      -- found a full path, add that to routes and end branch
+      | x == f  = (reverse $ x:xs):ps
+      | otherwise = case M.lookup x m of
+                      Nothing -> ps
+                      Just ls -> foldl (\ps' l-> findPaths' (l:x:xs) ps' len) ps ls
+
+shortestPath :: [[State]] -> [State]
+shortestPath ps = foldl (\a x -> if (length a) > (length x) then
+                            x else a) (head ps) (tail ps)
+
+solve :: Problem -> Maybe [State]
+solve p = if isPathPossible p ss
+          then Just $ shortestPath $ findPaths p ss
+          else Nothing
+  where
+    ss = allStates p
