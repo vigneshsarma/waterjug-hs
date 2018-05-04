@@ -2,6 +2,7 @@ module Lib
     ( someFunc
     , newProblem
     , allStates
+    , isPathPossible
     ) where
 
 import qualified Data.Map.Strict as M
@@ -14,6 +15,8 @@ data Jug = Jug Int Int deriving (Show, Eq, Ord)
 data State = State Jug Jug deriving (Show, Eq, Ord)
 
 data Problem = Problem State State deriving (Show, Eq, Ord)
+
+type StateMap = M.Map State [State]
 
 emptyJug :: Int -> Jug
 emptyJug c = Jug c 0
@@ -62,23 +65,27 @@ getNextState s = catMaybes $ map (\f -> f s) toNextStates
     toNextStates = [forRightToLeft, forRightToEmpty, forLeftFull,
                     forLeftToRight, forLeftToEmpty, forRightFull]
 
-allStates :: Problem -> M.Map State [State]
+allStates :: Problem -> StateMap
 allStates (Problem i f) =
   let
-    allStates' :: State -> S.Set State -> S.Set State -> M.Map State [State] -> M.Map State [State]
-    allStates' current complete queue m
+    allStates' :: State -> S.Set State -> StateMap -> StateMap
+    allStates' current queue m
       | S.null queue = m
-      | otherwise = allStates' next complete' queue'' m'
+      | otherwise = allStates' next queue'' m'
       where
         ns = getNextState current
         m' = M.insert current ns m
         queue' = S.delete current queue
-        new_q = S.fromList $ filter (\s -> S.notMember s complete) ns
-        queue'' = if S.member f new_q then queue' else S.union queue' new_q
+        new_q = S.fromList $ filter (\s -> M.notMember s m) ns
+        queue'' = if S.member f new_q
+          then queue'
+          else S.union queue' new_q
         next = head $ S.toList queue''
-        complete' = S.insert current complete
   in
-  allStates' i S.empty (S.fromList [i]) M.empty
+    allStates' i (S.fromList [i]) M.empty
+
+isPathPossible :: Problem -> StateMap -> Bool
+isPathPossible (Problem _ f) m = S.member f $ S.fromList $ concat $ M.elems m
 
 someFunc :: IO ()
 someFunc = putStrLn "someFunc"
