@@ -12,12 +12,16 @@ import qualified Data.Set as S
 -- import qualified Data.List as L
 import Data.Maybe
 
+--  Jug capacity, holding
 data Jug = Jug Int Int deriving (Show, Eq, Ord)
 
+-- State left right
 data State = State Jug Jug deriving (Show, Eq, Ord)
 
+-- Problem initial state, destination state
 data Problem = Problem State State deriving (Show, Eq, Ord)
 
+-- StateMap, type alias
 type StateMap = M.Map State [State]
 
 emptyJug :: Int -> Jug
@@ -76,9 +80,13 @@ allStates (Problem i f) =
       | otherwise = allStates' next queue'' m'
       where
         ns = getNextState current
+        -- insert current state and its possible transitions to the StateMap
         m' = M.insert current ns m
         queue' = S.delete current queue
+        -- filter out all the states that have already been visited.
         new_q = S.fromList $ filter (\s -> M.notMember s m) ns
+        -- if final state is in one of these, we dont care for other transitions
+        -- from that point
         queue'' = if S.member f new_q
           then queue'
           else S.union queue' new_q
@@ -96,21 +104,21 @@ You have to ensure that there is a path to final state before calling this.
 -}
 findPaths :: Problem -> StateMap -> [[State]]
 findPaths (Problem i f) m =
-  findPaths' [i] [] 0
+  findPaths' [i] []
   where
-    findPaths' :: [State] -> [[State]] -> Int -> [[State]]
-    findPaths' (x:xs) ps len
+    findPaths' :: [State] -> [[State]] -> [[State]]
+    findPaths' (x:xs) ps
       -- we have found a cycle, return the routes we have found and end the branch
       | x `elem` xs = ps
       -- found a full path, add that to routes and end branch
       | x == f  = (reverse $ x:xs):ps
       | otherwise = case M.lookup x m of
                       Nothing -> ps
-                      Just ls -> foldl (\ps' l-> findPaths' (l:x:xs) ps' len) ps ls
+                      Just ls -> foldl (\ps' l-> findPaths' (l:x:xs) ps') ps ls
 
 shortestPath :: [[State]] -> [State]
-shortestPath ps = foldl (\a x -> if (length a) > (length x) then
-                            x else a) (head ps) (tail ps)
+shortestPath ps = foldl (\a x -> if (length a) > (length x)
+                          then x else a) (head ps) (tail ps)
 
 solve :: Problem -> Maybe [State]
 solve p = if isPathPossible p ss
